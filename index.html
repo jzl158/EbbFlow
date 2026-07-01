@@ -278,6 +278,57 @@
     100% { transform: scale(2.1); opacity: 0; }
   }
 
+  /* Word search */
+  .wsGrid {
+    display: grid;
+    gap: 3px;
+    touch-action: none;
+    margin: 8px auto 0;
+    z-index: 2;
+  }
+  .wsCell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(127, 224, 160, .08);
+    border: 1px solid rgba(127, 224, 160, .16);
+    font-weight: 800;
+    color: #dff5e8;
+    transition: background .12s ease, color .12s ease;
+  }
+  .wsCell.sel { background: rgba(255, 217, 127, .45); color: #1a1f1a; }
+  .wsCell.found {
+    background: rgba(127, 224, 160, .5);
+    color: #0f1226;
+    box-shadow: 0 0 12px rgba(127, 224, 160, .5);
+  }
+  .wsBank {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    justify-content: center;
+    align-items: center;
+    margin-top: 16px;
+    max-width: 340px;
+    z-index: 2;
+  }
+  .wsWord {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: #cfe9d8;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: rgba(127, 224, 160, .1);
+    border: 1px solid rgba(127, 224, 160, .2);
+  }
+  .wsWord.done {
+    color: #0f1226;
+    background: rgba(127, 224, 160, .55);
+    text-decoration: line-through;
+  }
+
   /* Interstitial / final */
   .bigMsg {
     font-size: clamp(30px, 8.5vw, 48px);
@@ -577,7 +628,7 @@ function stageCountdown() {
 function stageDial() {
   setBg('linear-gradient(160deg, #141838 0%, #1c2152 100%)');
   const s = el('div', 'stage');
-  stageTag(s, 'Stage 1 of 7');
+  stageTag(s, 'Stage 1 of 8');
   s.appendChild(el('div', 'instruction', 'Spin to Unlock ✨'));
   s.appendChild(el('div', 'hint', 'Glide your finger around the ring of light — two full turns'));
 
@@ -691,7 +742,7 @@ function stageDial() {
 function stageFlowers() {
   setBg('linear-gradient(160deg, #12304a 0%, #1b4d3e 100%)');
   const s = el('div', 'stage');
-  stageTag(s, 'Stage 2 of 7');
+  stageTag(s, 'Stage 2 of 8');
   const hud = el('div', 'canvasHud');
   hud.appendChild(el('div', 'instruction', 'Pick the Flowers 🌸'));
   const counter = el('div', 'counter', '');
@@ -732,7 +783,7 @@ function stageFlowers() {
 function stageLightning() {
   setBg('linear-gradient(180deg, #0a0d20 0%, #1c1233 100%)');
   const s = el('div', 'stage');
-  stageTag(s, 'Stage 3 of 7');
+  stageTag(s, 'Stage 3 of 8');
   const hud = el('div', 'canvasHud');
   hud.appendChild(el('div', 'instruction', 'Dodge the Lightning ⚡'));
   hud.appendChild(el('div', 'hint', 'Slide your ship — survive 10 bolts. One hit and you start over!'));
@@ -892,7 +943,7 @@ function stageLightning() {
 function stageName() {
   setBg('linear-gradient(160deg, #1a1f4b 0%, #2a1c4d 100%)');
   const s = el('div', 'stage');
-  stageTag(s, 'Stage 4 of 7');
+  stageTag(s, 'Stage 4 of 8');
   s.appendChild(el('div', 'instruction', 'Spell Your Name ✍️'));
   s.appendChild(el('div', 'hint', 'Tap the floating letters'));
 
@@ -979,7 +1030,7 @@ function stageName() {
 function stageLava() {
   setBg('linear-gradient(180deg, #2b0f0f 0%, #451410 100%)');
   buildTraceStage({
-    tag: 'Stage 5 of 7',
+    tag: 'Stage 5 of 8',
     title: 'Avoid the Lava 🌋',
     hint: 'Hold your finger down and slide from START to FINISH.<br>Don’t touch the lava — don’t lift your finger!',
     failMsg: 'Ouch, lava! 🔥 Try again.',
@@ -1045,11 +1096,11 @@ function stageKeepGoing() {
 function stagePlank() {
   setBg('linear-gradient(180deg, #0c2b3d 0%, #06405c 100%)');
   buildTraceStage({
-    tag: 'Stage 6 of 7',
+    tag: 'Stage 6 of 8',
     title: 'Walk the Plank 🪵',
     hint: 'Slide your finger up the plank from START to FINISH.<br>Stay on the wood — don’t fall in!',
     failMsg: 'Splash! 🌊 Back on the plank.',
-    next: stageBubbles,
+    next: stageWordSearch,
     celebrate: 'Steady as she goes! 🪵',
     // Safe corridor: a straight vertical plank. "Hazard" = everything off the plank.
     corridor(W, H) {
@@ -1276,12 +1327,181 @@ function buildTraceStage(cfg) {
   requestAnimationFrame(loop);
 }
 
-/* ---------- 9. Pop the bubbles ---------- */
+/* ---------- 9. Word search (peace & balance) ---------- */
+
+function stageWordSearch() {
+  setBg('linear-gradient(160deg, #12332a 0%, #1b4d3e 100%)');
+  const s = el('div', 'stage');
+  stageTag(s, 'Stage 7 of 8');
+  s.appendChild(el('div', 'instruction', 'Find the Words 🕊️'));
+  s.appendChild(el('div', 'hint', 'Drag across the 5 hidden words of peace &amp; balance'));
+
+  const N = 8;
+  const POOL = ['PEACE', 'CALM', 'BALANCE', 'HARMONY', 'STILL', 'ZEN', 'EASE',
+    'GRACE', 'BREATHE', 'FLOW', 'REST', 'QUIET', 'STEADY', 'CENTER',
+    'PRESENT', 'GENTLE', 'MINDFUL', 'UNITY', 'SOOTHE', 'WHOLE'];
+  const DIRS = [[0, 1], [1, 0], [1, 1], [1, -1], [0, -1], [-1, 0], [-1, -1], [-1, 1]];
+  const rnd = n => Math.floor(Math.random() * n);
+  const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  // Pick 5 random words (fresh every play) and build a grid, retrying on failure.
+  let grid, placements, words;
+  for (let outer = 0; outer < 40 && !grid; outer++) {
+    words = shuffle(POOL.filter(w => w.length <= N).slice()).slice(0, 5)
+      .sort((a, b) => b.length - a.length); // place longest first
+    const g = Array.from({ length: N }, () => Array(N).fill(null));
+    const places = [];
+    let ok = true;
+    for (const w of words) {
+      const p = placeWord(g, w);
+      if (!p) { ok = false; break; }
+      places.push(p);
+    }
+    if (ok) { grid = g; placements = places; }
+  }
+  // fill empty cells with random letters
+  const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (grid[r][c] === null) grid[r][c] = ALPHA[rnd(26)];
+
+  function placeWord(g, w) {
+    for (let t = 0; t < 300; t++) {
+      const [dr, dc] = DIRS[rnd(DIRS.length)];
+      const r0 = rnd(N), c0 = rnd(N);
+      const r1 = r0 + dr * (w.length - 1), c1 = c0 + dc * (w.length - 1);
+      if (r1 < 0 || r1 >= N || c1 < 0 || c1 >= N) continue;
+      let fits = true;
+      for (let i = 0; i < w.length; i++) {
+        const ch = g[r0 + dr * i][c0 + dc * i];
+        if (ch !== null && ch !== w[i]) { fits = false; break; }
+      }
+      if (!fits) continue;
+      const cells = [];
+      for (let i = 0; i < w.length; i++) {
+        const r = r0 + dr * i, c = c0 + dc * i;
+        g[r][c] = w[i];
+        cells.push(r + ',' + c);
+      }
+      return { word: w, keys: new Set(cells) };
+    }
+    return null;
+  }
+
+  // Build the grid DOM
+  const gridEl = el('div', 'wsGrid');
+  const containerW = Math.min(innerWidth * 0.9, 360);
+  const gap = 3;
+  const cellPx = Math.floor((containerW - gap * (N - 1)) / N);
+  gridEl.style.gridTemplateColumns = `repeat(${N}, ${cellPx}px)`;
+  const cellEls = Array.from({ length: N }, () => Array(N).fill(null));
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const cell = el('div', 'wsCell', grid[r][c]);
+      cell.style.width = cell.style.height = cellPx + 'px';
+      cell.style.fontSize = Math.round(cellPx * 0.44) + 'px';
+      gridEl.appendChild(cell);
+      cellEls[r][c] = cell;
+    }
+  }
+  s.appendChild(gridEl);
+
+  // Word bank
+  const bank = el('div', 'wsBank');
+  const wordEls = {};
+  words.forEach(w => {
+    const we = el('div', 'wsWord', w);
+    bank.appendChild(we);
+    wordEls[w] = we;
+  });
+  s.appendChild(bank);
+  game.appendChild(s);
+
+  // ----- selection / drag logic -----
+  let selecting = false, startCell = null, curLine = [], found = 0;
+
+  function cellFromPoint(x, y) {
+    const rect = gridEl.getBoundingClientRect();
+    const cw = rect.width / N, ch = rect.height / N;
+    const c = Math.floor((x - rect.left) / cw), r = Math.floor((y - rect.top) / ch);
+    if (r < 0 || r >= N || c < 0 || c >= N) return null;
+    return { r, c };
+  }
+  function lineCells(a, b) {
+    const dr = b.r - a.r, dc = b.c - a.c;
+    if (!(dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc))) return null;
+    const steps = Math.max(Math.abs(dr), Math.abs(dc));
+    const sr = Math.sign(dr), sc = Math.sign(dc);
+    const out = [];
+    for (let i = 0; i <= steps; i++) out.push({ r: a.r + sr * i, c: a.c + sc * i });
+    return out;
+  }
+  function clearSel() {
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) cellEls[r][c].classList.remove('sel');
+  }
+  function paintSel(cells) {
+    clearSel();
+    for (const p of cells) cellEls[p.r][p.c].classList.add('sel');
+  }
+
+  gridEl.addEventListener('pointerdown', ev => {
+    const c = cellFromPoint(ev.clientX, ev.clientY);
+    if (!c) return;
+    selecting = true; startCell = c; curLine = [c];
+    try { gridEl.setPointerCapture(ev.pointerId); } catch (e) {}
+    paintSel(curLine);
+  });
+  gridEl.addEventListener('pointermove', ev => {
+    if (!selecting) return;
+    const c = cellFromPoint(ev.clientX, ev.clientY);
+    if (!c) return;
+    const line = lineCells(startCell, c);
+    curLine = line || [startCell];
+    paintSel(curLine);
+  });
+  function endSel() {
+    if (!selecting) return;
+    selecting = false;
+    finalize();
+  }
+  gridEl.addEventListener('pointerup', endSel);
+  gridEl.addEventListener('pointercancel', () => { selecting = false; clearSel(); });
+
+  function finalize() {
+    if (curLine.length < 2) { clearSel(); return; }
+    const keys = new Set(curLine.map(p => p.r + ',' + p.c));
+    let matched = null;
+    for (const pl of placements) {
+      if (pl.done) continue;
+      if (pl.keys.size !== keys.size) continue;
+      let same = true;
+      for (const k of keys) if (!pl.keys.has(k)) { same = false; break; }
+      if (same) { matched = pl; break; }
+    }
+    if (matched) {
+      matched.done = true;
+      for (const p of curLine) { cellEls[p.r][p.c].classList.remove('sel'); cellEls[p.r][p.c].classList.add('found'); }
+      wordEls[matched.word].classList.add('done');
+      found++;
+      chime(scaleNote(found + 2), 0.1);
+      const mid = curLine[Math.floor(curLine.length / 2)];
+      const rect = cellEls[mid.r][mid.c].getBoundingClientRect();
+      aura(s, rect.left + rect.width / 2, rect.top + rect.height / 2, 120, 'rgba(127, 224, 160, .8)');
+      vibrate(15);
+      if (found === words.length) {
+        bowl(392, 4, 0.14); bowl(523.3, 4, 0.1);
+        setTimeout(() => transitionTo(stageBubbles, 'Inner peace 🕊️'), 700);
+      }
+    } else {
+      clearSel();
+    }
+  }
+}
+
+/* ---------- 10. Pop the bubbles ---------- */
 
 function stageBubbles() {
   setBg('linear-gradient(180deg, #123a5c 0%, #1b6d8f 100%)');
   const s = el('div', 'stage');
-  stageTag(s, 'Stage 7 of 7');
+  stageTag(s, 'Stage 8 of 8');
   const hud = el('div', 'canvasHud');
   hud.appendChild(el('div', 'instruction', 'Pop the Bubbles 🫧'));
   const counter = el('div', 'counter', '5 left');
