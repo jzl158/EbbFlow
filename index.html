@@ -720,7 +720,7 @@ function stageFlowers() {
       aura(s, ev.clientX, ev.clientY, 90, 'rgba(255, 178, 200, .8)');
       vibrate(15);
       if (remaining === 0) {
-        setTimeout(() => transitionTo(stageLightning, 'Beautiful bouquet! 💐'), 600);
+        setTimeout(() => transitionTo(stageLightning, 'Blossoms Ahead 💐'), 600);
       }
     });
     s.appendChild(fl);
@@ -1324,7 +1324,6 @@ function stageFinal() {
   setBg('linear-gradient(160deg, #2a1c4d 0%, #4d2a1c 50%, #1a1f4b 100%)');
   const s = el('div', 'stage');
   sprinkleConfetti(s, 30);
-  s.appendChild(el('div', '', '<div style="font-size:64px;margin-bottom:20px">🌊✨</div>'));
   const who = playerName ? `${playerName}, ` : '';
   s.appendChild(el('div', 'bigMsg', `${who}people’s lives are a joy<br>when you’re in it. 💛`));
   s.appendChild(el('div', 'hint', 'You rode every ebb and every flow.<br>The End.'));
@@ -1337,6 +1336,9 @@ function stageFinal() {
   s.appendChild(again);
   game.appendChild(s);
 
+  // fireflies drift throughout; make sure they're alive on the closing page
+  startFireflies();
+
   // closing bowl chord, one strike at a time, ringing together
   const chord = [261.6, 329.6, 392, 523.3];
   chord.forEach((f, i) => {
@@ -1345,6 +1347,15 @@ function stageFinal() {
       aura(s, innerWidth / 2, innerHeight / 2, 140 + i * 50, 'rgba(255, 217, 127, .7)', 2.6);
     }, i * 600);
   });
+
+  // gentle, unending ripples radiating across the closing screen
+  const palette = ['rgba(255, 217, 127, .7)', 'rgba(199, 146, 255, .6)', 'rgba(127, 224, 160, .55)'];
+  const rippleLoop = setInterval(() => {
+    if (!document.body.contains(s)) { clearInterval(rippleLoop); return; }
+    const x = innerWidth * (0.2 + Math.random() * 0.6);
+    const y = innerHeight * (0.2 + Math.random() * 0.6);
+    aura(s, x, y, 90 + Math.random() * 90, palette[Math.floor(Math.random() * palette.length)], 2.4 + Math.random());
+  }, 900);
 }
 
 /* ---------- go ---------- */
