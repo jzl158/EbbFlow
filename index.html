@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Life's Ebbs &amp; Flows</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f1226;
+    color: #fff;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #game {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: linear-gradient(160deg, #1a1f4b 0%, #0f1226 60%, #251a3d 100%);
+    transition: background 1.4s ease;
+  }
+  .stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    animation: fadeIn .9s ease both;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
+  @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: scale(1.04); } }
+  .leaving { animation: fadeOut .7s ease both; }
+
+  h1 {
+    font-size: clamp(34px, 9vw, 56px);
+    background: linear-gradient(90deg, #7fd4ff, #c792ff, #ffb26b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 10px;
+    line-height: 1.15;
+  }
+  .subtitle { color: #aab2e8; font-size: 17px; margin-bottom: 44px; max-width: 300px; line-height: 1.5; }
+  .instruction {
+    font-size: clamp(22px, 6vw, 30px);
+    font-weight: 700;
+    margin-bottom: 8px;
+    letter-spacing: .5px;
+  }
+  .hint { color: #aab2e8; font-size: 15px; margin-bottom: 18px; }
+  .stageTag {
+    position: absolute;
+    top: calc(16px + env(safe-area-inset-top));
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #6f78c9;
+  }
+  button.big {
+    font-size: 22px;
+    font-weight: 800;
+    padding: 18px 58px;
+    border: none;
+    border-radius: 50px;
+    color: #0f1226;
+    background: linear-gradient(90deg, #7fd4ff, #c792ff);
+    box-shadow: 0 8px 30px rgba(127, 212, 255, .35);
+    cursor: pointer;
+    animation: breathe 4s ease-in-out infinite;
+  }
+  button.big:active { transform: scale(.95); }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); box-shadow: 0 8px 30px rgba(127,212,255,.3); }
+    50% { transform: scale(1.04); box-shadow: 0 8px 50px rgba(199,146,255,.5); }
+  }
+
+  /* Aura rings — the visual voice of the game */
+  .aura {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid rgba(127, 212, 255, .75);
+    pointer-events: none;
+    z-index: 5;
+    animation: auraExpand 1.8s cubic-bezier(.2, .6, .4, 1) both;
+  }
+  @keyframes auraExpand {
+    0% { transform: scale(.25); opacity: .9; }
+    100% { transform: scale(2.8); opacity: 0; }
+  }
+
+  /* Countdown */
+  .countNum {
+    font-size: clamp(110px, 34vw, 190px);
+    font-weight: 900;
+    animation: countPop 1s ease both;
+    background: linear-gradient(180deg, #fff, #7fd4ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .countWord { font-size: clamp(44px, 13vw, 80px); }
+  @keyframes countPop {
+    0% { opacity: 0; transform: scale(1.8); }
+    30% { opacity: 1; transform: scale(1); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: scale(.85); }
+  }
+
+  /* Halo ring (stage 1) — a ring of light, not a lock */
+  #haloWrap {
+    position: relative;
+    width: min(78vw, 320px);
+    height: min(78vw, 320px);
+    touch-action: none;
+  }
+  #haloRing {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid rgba(127, 212, 255, .22);
+    box-shadow: 0 0 34px rgba(127, 212, 255, .14), inset 0 0 34px rgba(127, 212, 255, .1);
+  }
+  #haloArc, #haloGlow {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    -webkit-mask: radial-gradient(closest-side, transparent 85%, #000 88%);
+    mask: radial-gradient(closest-side, transparent 85%, #000 88%);
+    pointer-events: none;
+  }
+  #haloGlow { filter: blur(14px); }
+  #haloCore {
+    position: absolute;
+    inset: 28%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(199, 146, 255, .55), rgba(127, 212, 255, .18) 55%, transparent 72%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42px;
+    opacity: .3;
+    pointer-events: none;
+    transition: opacity .4s ease, transform .4s ease;
+    animation: coreBreath 5.5s ease-in-out infinite;
+  }
+  @keyframes coreBreath {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+  }
+  #haloOrb {
+    position: absolute;
+    width: 24px; height: 24px;
+    margin: -12px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff, #ffd97f 45%, rgba(255, 178, 107, 0) 78%);
+    box-shadow: 0 0 20px 7px rgba(255, 217, 127, .55);
+    pointer-events: none;
+  }
+  .orbTrail {
+    position: absolute;
+    width: 16px; height: 16px;
+    margin: -8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 217, 127, .75), transparent 70%);
+    pointer-events: none;
+    animation: trailFade 1.3s ease-out both;
+  }
+  @keyframes trailFade {
+    from { opacity: .85; transform: scale(1); }
+    to { opacity: 0; transform: scale(2.4); }
+  }
+
+  /* Flowers */
+  .flower {
+    position: absolute;
+    font-size: 46px;
+    cursor: pointer;
+    animation: flowerSway 4.5s ease-in-out infinite;
+    transition: transform .1s;
+  }
+  @keyframes flowerSway {
+    0%, 100% { transform: rotate(-7deg) translateY(0); }
+    50% { transform: rotate(7deg) translateY(-8px); }
+  }
+  .flower.picked { animation: flowerPop .8s ease both; pointer-events: none; }
+  @keyframes flowerPop {
+    0% { transform: scale(1); opacity: 1; }
+    40% { transform: scale(1.5) rotate(15deg); opacity: 1; }
+    100% { transform: scale(0) rotate(45deg) translateY(-60px); opacity: 0; }
+  }
+
+  /* Canvas stages */
+  canvas.stageCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .canvasHud {
+    position: absolute;
+    top: calc(48px + env(safe-area-inset-top));
+    left: 0; right: 0;
+    text-align: center;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .canvasHud .instruction { margin-bottom: 2px; }
+  .counter { font-size: 26px; font-weight: 800; color: #ffd97f; }
+
+  /* Name stage */
+  #nameDisplay {
+    min-height: 64px;
+    font-size: clamp(34px, 9vw, 52px);
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: #ffd97f;
+    border-bottom: 3px dashed #3d468f;
+    min-width: 220px;
+    padding: 4px 14px;
+    z-index: 3;
+  }
+  .floatLetter {
+    position: absolute;
+    font-size: 30px;
+    font-weight: 800;
+    width: 52px; height: 52px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: rgba(127, 212, 255, .14);
+    border: 2px solid rgba(127, 212, 255, .4);
+    color: #cfe9ff;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .floatLetter:active { background: rgba(255, 217, 127, .5); transform: scale(1.2); }
+  .nameBtns { display: flex; gap: 14px; margin-top: 64px; z-index: 3; }
+  .nameBtns button {
+    font-size: 18px; font-weight: 700;
+    padding: 13px 26px;
+    border-radius: 40px;
+    border: 2px solid #3d468f;
+    background: #1c2152;
+    color: #fff;
+    cursor: pointer;
+  }
+  .nameBtns button.enter { background: linear-gradient(90deg, #7fd4ff, #c792ff); color: #0f1226; border: none; }
+  .nameBtns button:disabled { opacity: .35; }
+
+  /* Bubbles */
+  .bubble {
+    position: absolute;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 30%, rgba(255,255,255,.85), rgba(127,212,255,.28) 42%, rgba(127,212,255,.10) 70%);
+    border: 2px solid rgba(255,255,255,.5);
+    cursor: pointer;
+    animation: bubbleFloat 4.5s ease-in-out infinite;
+  }
+  @keyframes bubbleFloat {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-16px) scale(1.04); }
+  }
+  .bubble.popped { animation: bubblePop .5s ease both; pointer-events: none; }
+  @keyframes bubblePop {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(2.1); opacity: 0; }
+  }
+
+  /* Interstitial / final */
+  .bigMsg {
+    font-size: clamp(30px, 8.5vw, 48px);
+    font-weight: 900;
+    line-height: 1.3;
+    background: linear-gradient(90deg, #7fd4ff, #c792ff, #ffb26b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: msgIn 1.4s ease both;
+    max-width: 560px;
+  }
+  @keyframes msgIn {
+    0% { opacity: 0; transform: translateY(30px) scale(.92); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .confetti {
+    position: absolute;
+    top: -20px;
+    font-size: 26px;
+    animation: confFall linear both;
+    pointer-events: none;
+  }
+  @keyframes confFall {
+    to { transform: translateY(110vh) rotate(720deg); }
+  }
+  .shake { animation: shake .5s ease; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-14px); }
+    40% { transform: translateX(12px); }
+    60% { transform: translateX(-8px); }
+    80% { transform: translateX(6px); }
+  }
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<script>
+'use strict';
+
+const game = document.getElementById('game');
+let playerName = '';
+
+/* ---------- helpers ---------- */
+
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+
+function clearGame() { game.innerHTML = ''; }
+
+function setBg(css) { game.style.background = css; }
+
+// Fade out current stage, run a celebratory transition, then start next stage.
+function transitionTo(nextFn, celebrateText) {
+  const current = game.firstElementChild;
+  if (current) current.classList.add('leaving');
+  setTimeout(() => {
+    clearGame();
+    if (celebrateText) {
+      const s = el('div', 'stage');
+      s.appendChild(el('div', 'bigMsg', celebrateText));
+      sprinkleConfetti(s, 34, 14); // small, dense, confetti-like
+      auraBurst(s, innerWidth / 2, innerHeight / 2, 3);
+      game.appendChild(s);
+      setTimeout(() => { clearGame(); nextFn(); }, 1700);
+    } else {
+      nextFn();
+    }
+  }, 650);
+}
+
+function sprinkleConfetti(parent, n, size = 22) {
+  // small, confetti-like emojis in the purple/gold/green palette
+  const glyphs = ['✨', '💫', '💛', '🟣', '🟡', '🟢', '🍃', '🌟'];
+  for (let i = 0; i < n; i++) {
+    const c = el('div', 'confetti', glyphs[Math.floor(Math.random() * glyphs.length)]);
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.fontSize = (size * (0.7 + Math.random() * 0.6)) + 'px';
+    c.style.animationDuration = (2.5 + Math.random() * 3) + 's';
+    c.style.animationDelay = (Math.random() * 1.2) + 's';
+    parent.appendChild(c);
+  }
+}
+
+// Persistent firefly ambiance — soft purple/gold/green motes drifting and
+// twinkling behind everything, all game long.
+function startFireflies() {
+  if (document.getElementById('fireflyCanvas')) return;
+  const c = document.createElement('canvas');
+  c.id = 'fireflyCanvas';
+  c.style.cssText = 'position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:3;';
+  document.body.appendChild(c);
+  const ctx = c.getContext('2d');
+  let W, H;
+  function resize() { W = c.width = innerWidth * devicePixelRatio; H = c.height = innerHeight * devicePixelRatio; }
+  resize();
+  addEventListener('resize', resize);
+  const colors = ['199,146,255', '255,217,127', '127,224,160']; // purple, gold, green
+  const flies = [];
+  for (let i = 0; i < 24; i++) {
+    flies.push({
+      x: Math.random(), y: Math.random(),
+      vx: (Math.random() - 0.5) * 0.025, vy: (Math.random() - 0.5) * 0.025,
+      r: 1.4 + Math.random() * 2.4,
+      color: colors[i % 3],
+      phase: Math.random() * 6.28,
+      speed: 0.5 + Math.random() * 0.9,
+    });
+  }
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min((now - last) / 1000, 0.05); last = now;
+    const t = now / 1000;
+    ctx.clearRect(0, 0, W, H);
+    for (const f of flies) {
+      f.x += f.vx * dt; f.y += f.vy * dt;
+      if (f.x < 0) f.x = 1; if (f.x > 1) f.x = 0;
+      if (f.y < 0) f.y = 1; if (f.y > 1) f.y = 0;
+      const tw = 0.2 + 0.6 * (0.5 + 0.5 * Math.sin(t * f.speed + f.phase));
+      const px = f.x * W, py = f.y * H, rr = f.r * devicePixelRatio;
+      const g = ctx.createRadialGradient(px, py, 0, px, py, rr * 4.5);
+      g.addColorStop(0, `rgba(${f.color},${tw})`);
+      g.addColorStop(1, `rgba(${f.color},0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(px, py, rr * 4.5, 0, 6.29);
+      ctx.fill();
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+
+function stageTag(s, text) { s.appendChild(el('div', 'stageTag', text)); }
+
+function vibrate(ms) { if (navigator.vibrate) navigator.vibrate(ms); }
+
+/* ---------- aura rings (visual resonance) ---------- */
+
+// Spawn one expanding aura ring at viewport coords (x, y).
+function aura(parent, x, y, size = 90, color = 'rgba(127, 212, 255, .75)', dur = 1.8) {
+  if (!parent || !document.body.contains(parent)) return;
+  const a = el('div', 'aura');
+  a.style.left = (x - size / 2) + 'px';
+  a.style.top = (y - size / 2) + 'px';
+  a.style.width = size + 'px';
+  a.style.height = size + 'px';
+  a.style.borderColor = color;
+  a.style.animationDuration = dur + 's';
+  parent.appendChild(a);
+  setTimeout(() => a.remove(), dur * 1000 + 50);
+}
+
+// A burst of concentric rings, like a bowl being struck.
+function auraBurst(parent, x, y, n = 3, color, baseSize = 110) {
+  for (let i = 0; i < n; i++) {
+    setTimeout(() => aura(parent, x, y, baseSize + i * 30, color, 2.2), i * 220);
+  }
+}
+
+/* ---------- sound: singing bowls ---------- */
+
+let audioCtx = null;
+function ac() {
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+// Singing-bowl tone: detuned fundamental pair (slow beating) + inharmonic
+// partials, soft bloom attack, long ring-out.
+function bowl(freq, dur = 3, vol = 0.14) {
+  try {
+    const ctx = ac();
+    const t = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.value = vol;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = Math.min(freq * 6, 4200);
+    master.connect(lp);
+    lp.connect(ctx.destination);
+    const partials = [
+      { r: 1.000, g: 1.00 },
+      { r: 1.004, g: 0.55 },   // beating pair — the bowl "wobble"
+      { r: 2.72,  g: 0.22 },
+      { r: 5.41,  g: 0.07 },
+    ];
+    for (const p of partials) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = freq * p.r;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(p.g, t + 0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g);
+      g.connect(master);
+      o.start(t);
+      o.stop(t + dur + 0.1);
+    }
+  } catch (e) { /* audio optional */ }
+}
+
+// Shorter, lighter strike for taps.
+function chime(freq, vol = 0.1) { bowl(freq, 1.6, vol); }
+
+// Pentatonic ladder for sequences of taps (flowers, dodges, letters…).
+const SCALE = [261.6, 293.7, 329.6, 392.0, 440.0, 523.3, 587.3, 659.3, 784.0, 880.0, 1046.5, 1174.7];
+function scaleNote(i) { return SCALE[Math.min(i, SCALE.length - 1)]; }
+
+// Barely-there meditative drone that breathes underneath everything.
+let ambientOn = false;
+function startAmbient() {
+  if (ambientOn) return;
+  try {
+    const ctx = ac();
+    ambientOn = true;
+    const g = ctx.createGain();
+    g.gain.value = 0.028;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 320;
+    g.connect(lp);
+    lp.connect(ctx.destination);
+    [{ f: 110, v: 1 }, { f: 110.6, v: 0.9 }, { f: 165.2, v: 0.35 }].forEach(p => {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = p.f;
+      const og = ctx.createGain();
+      og.gain.value = p.v;
+      o.connect(og);
+      og.connect(g);
+      o.start();
+    });
+    // slow breathing swell
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.07;
+    const lfoG = ctx.createGain();
+    lfoG.gain.value = 0.012;
+    lfo.connect(lfoG);
+    lfoG.connect(g.gain);
+    lfo.start();
+  } catch (e) { /* audio optional */ }
+}
+
+/* ---------- 0. Title ---------- */
+
+function stageTitle() {
+  setBg('linear-gradient(160deg, #1a1f4b 0%, #0f1226 60%, #251a3d 100%)');
+  const s = el('div', 'stage');
+  s.appendChild(el('h1', '', "Ebbs &amp; Flows"));
+  s.appendChild(el('div', 'subtitle', 'Embrace the joys of the day.'));
+  const btn = el('button', 'big', 'START');
+  btn.addEventListener('pointerdown', ev => {
+    startAmbient();
+    bowl(220, 4.5, 0.18);
+    vibrate(20);
+    auraBurst(s, ev.clientX, ev.clientY, 3);
+    transitionTo(stageCountdown);
+  });
+  s.appendChild(btn);
+  game.appendChild(s);
+}
+
+/* ---------- 1. Countdown ---------- */
+
+function stageCountdown() {
+  const s = el('div', 'stage');
+  game.appendChild(s);
+  const seq = [
+    { t: 'READY', cls: 'countNum countWord', f: 392 },
+    { t: 'SET', cls: 'countNum countWord', f: 440 },
+    { t: 'GO!', cls: 'countNum countWord', f: 523.3 },
+  ];
+  let i = 0;
+  (function next() {
+    if (i >= seq.length) { transitionTo(stageDial); return; }
+    s.innerHTML = '';
+    s.appendChild(el('div', seq[i].cls, seq[i].t));
+    bowl(seq[i].f, 2.4, 0.15);
+    aura(s, innerWidth / 2, innerHeight / 2, 160, 'rgba(199, 146, 255, .7)', 2);
+    vibrate(15);
+    i++;
+    setTimeout(next, 1000);
+  })();
+}
+
+/* ---------- 2. Spin to unlock ---------- */
+
+function stageDial() {
+  setBg('linear-gradient(160deg, #141838 0%, #1c2152 100%)');
+  const s = el('div', 'stage');
+  stageTag(s, 'Stage 1 of 7');
+  s.appendChild(el('div', 'instruction', 'Spin to Unlock ✨'));
+  s.appendChild(el('div', 'hint', 'Glide your finger around the ring of light — two full turns'));
+
+  const wrap = el('div', '');
+  wrap.id = 'haloWrap';
+  const ring = el('div', ''); ring.id = 'haloRing';
+  const glow = el('div', ''); glow.id = 'haloGlow';
+  const arc = el('div', ''); arc.id = 'haloArc';
+  const core = el('div', ''); core.id = 'haloCore';
+  const orb = el('div', ''); orb.id = 'haloOrb';
+  wrap.appendChild(ring);
+  wrap.appendChild(glow);
+  wrap.appendChild(arc);
+  wrap.appendChild(core);
+  wrap.appendChild(orb);
+  s.appendChild(wrap);
+  game.appendChild(s);
+
+  const NEED = 720; // degrees
+  let total = 0, lastAngle = null, done = false;
+  let lastRingAt = 0, lastToneAt = 0, lastTrailAt = 0;
+
+  // The glowing arc fills the circle as the spin progresses, blue drifting gold.
+  function paintArc(p) {
+    const deg = Math.min(p, 1) * 360;
+    const hue = 200 + p * 90;
+    const g = `conic-gradient(from -90deg, hsla(${hue}, 90%, 78%, .95) 0deg, hsla(${hue}, 88%, 68%, .8) ${deg}deg, rgba(255, 255, 255, .05) ${deg}deg 360deg)`;
+    arc.style.background = g;
+    glow.style.background = g;
+    core.style.opacity = 0.3 + p * 0.6;
+  }
+  paintArc(0);
+
+  function placeOrb(angleDeg) {
+    const w = wrap.clientWidth;
+    const rad = angleDeg * Math.PI / 180;
+    const R = w / 2 - 2;
+    orb.style.left = (w / 2 + Math.cos(rad) * R) + 'px';
+    orb.style.top = (w / 2 + Math.sin(rad) * R) + 'px';
+  }
+  placeOrb(-90); // rest at the top
+
+  function angleFromEvent(ev) {
+    const r = wrap.getBoundingClientRect();
+    const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    return Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180 / Math.PI;
+  }
+
+  function haloCenterXY() {
+    const r = wrap.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2, size: r.width };
+  }
+
+  wrap.addEventListener('pointerdown', ev => {
+    try { wrap.setPointerCapture(ev.pointerId); } catch (e) {}
+    lastAngle = angleFromEvent(ev);
+    placeOrb(lastAngle);
+  });
+  wrap.addEventListener('pointermove', ev => {
+    if (lastAngle === null || done) return;
+    const a = angleFromEvent(ev);
+    let d = a - lastAngle;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    lastAngle = a;
+    total += Math.abs(d);
+    const p = Math.min(total / NEED, 1);
+    paintArc(p);
+    placeOrb(a);
+
+    // the orb sheds a fading trail of light behind it
+    if (total - lastTrailAt >= 12) {
+      lastTrailAt = total;
+      const t = el('div', 'orbTrail');
+      t.style.left = orb.style.left;
+      t.style.top = orb.style.top;
+      wrap.appendChild(t);
+      setTimeout(() => t.remove(), 1350);
+    }
+    // every 60° of spin, the halo leaves a resonance ring behind it
+    if (total - lastRingAt >= 60) {
+      lastRingAt = total;
+      const c = haloCenterXY();
+      const hue = 200 + p * 90; // drifts from blue toward violet-gold as it opens
+      aura(s, c.x, c.y, c.size, `hsla(${hue}, 85%, 72%, .75)`, 2);
+    }
+    // and every half-turn, a soft rising bowl tone
+    if (total - lastToneAt >= 180) {
+      lastToneAt = total;
+      chime(scaleNote(Math.floor(total / 180)), 0.07);
+    }
+
+    if (total >= NEED && !done) {
+      done = true;
+      core.textContent = '✨';
+      core.style.transform = 'scale(1.5)';
+      bowl(392, 4.5, 0.16);
+      bowl(523.3, 4.5, 0.12);
+      vibrate([30, 40, 60]);
+      ring.style.boxShadow = '0 0 90px rgba(255, 217, 127, .6), inset 0 0 50px rgba(255, 217, 127, .35)';
+      const c = haloCenterXY();
+      auraBurst(s, c.x, c.y, 4, 'rgba(255, 217, 127, .8)', c.size);
+      setTimeout(() => transitionTo(stageFlowers, 'Unlocked! ✨'), 800);
+    }
+  });
+  wrap.addEventListener('pointerup', () => { lastAngle = null; });
+}
+
+/* ---------- 3. Pick the flowers ---------- */
+
+function stageFlowers() {
+  setBg('linear-gradient(160deg, #12304a 0%, #1b4d3e 100%)');
+  const s = el('div', 'stage');
+  stageTag(s, 'Stage 2 of 7');
+  const hud = el('div', 'canvasHud');
+  hud.appendChild(el('div', 'instruction', 'Pick the Flowers 🌸'));
+  const counter = el('div', 'counter', '');
+  hud.appendChild(counter);
+  s.appendChild(hud);
+  game.appendChild(s);
+
+  const flowers = ['🌸', '🌼', '🌺', '🌷', '🌻', '💐', '🌹', '🪻'];
+  let remaining = flowers.length;
+  counter.textContent = remaining + ' left';
+
+  // Scatter in a loose grid so none overlap.
+  const cols = 3;
+  flowers.forEach((f, i) => {
+    const fl = el('div', 'flower', f);
+    const col = i % cols, row = Math.floor(i / cols);
+    fl.style.left = (12 + col * 28 + Math.random() * 10) + 'vw';
+    fl.style.top = (24 + row * 21 + Math.random() * 7) + 'vh';
+    fl.style.animationDelay = (Math.random() * 2) + 's';
+    fl.addEventListener('pointerdown', ev => {
+      if (fl.classList.contains('picked')) return;
+      fl.classList.add('picked');
+      remaining--;
+      counter.textContent = remaining > 0 ? remaining + ' left' : '🎉';
+      chime(scaleNote(flowers.length - remaining - 1), 0.09);
+      aura(s, ev.clientX, ev.clientY, 90, 'rgba(255, 178, 200, .8)');
+      vibrate(15);
+      if (remaining === 0) {
+        setTimeout(() => transitionTo(stageLightning, 'Beautiful bouquet! 💐'), 600);
+      }
+    });
+    s.appendChild(fl);
+  });
+}
+
+/* ---------- 4. Dodge the lightning ---------- */
+
+function stageLightning() {
+  setBg('linear-gradient(180deg, #0a0d20 0%, #1c1233 100%)');
+  const s = el('div', 'stage');
+  stageTag(s, 'Stage 3 of 7');
+  const hud = el('div', 'canvasHud');
+  hud.appendChild(el('div', 'instruction', 'Dodge the Lightning ⚡'));
+  hud.appendChild(el('div', 'hint', 'Slide your ship — survive 10 bolts. One hit and you start over!'));
+  const counter = el('div', 'counter', '0 / 10');
+  hud.appendChild(counter);
+  s.appendChild(hud);
+
+  const canvas = el('canvas', 'stageCanvas');
+  s.appendChild(canvas);
+  game.appendChild(s);
+
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  function resize() {
+    W = canvas.width = canvas.clientWidth * devicePixelRatio;
+    H = canvas.height = canvas.clientHeight * devicePixelRatio;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const ship = { x: 0.5 }; // x in 0..1
+  let bolts = [];
+  let ripples = []; // canvas aura rings that trail the ship
+  let dodged = 0, alive = true, running = true;
+  let spawnTimer = 0, elapsed = 0, rippleTimer = 0, last = performance.now();
+
+  canvas.addEventListener('pointerdown', movShip);
+  canvas.addEventListener('pointermove', movShip);
+  function movShip(ev) {
+    if (ev.pressure === 0 && ev.pointerType === 'mouse' && ev.buttons === 0 && ev.type === 'pointermove') return;
+    const r = canvas.getBoundingClientRect();
+    ship.x = Math.max(0.06, Math.min(0.94, (ev.clientX - r.left) / r.width));
+  }
+
+  function spawnBolt() {
+    bolts.push({
+      x: 0.08 + Math.random() * 0.84,
+      y: -0.08,
+      speed: 0.32 + Math.random() * 0.22 + dodged * 0.015, // gets a touch faster
+      wobble: (Math.random() - 0.5) * 0.16,
+      counted: false,
+    });
+  }
+
+  function addRipple(x, y, max, width) {
+    ripples.push({ x, y, r: 10 * devicePixelRatio, max: max * devicePixelRatio, w: width * devicePixelRatio });
+  }
+
+  function loop(now) {
+    if (!running) return;
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    elapsed += dt;
+    spawnTimer -= dt;
+    if (spawnTimer <= 0 && dodged + bolts.length < 14) {
+      spawnBolt();
+      spawnTimer = 0.75 + Math.random() * 0.5;
+    }
+
+    ctx.clearRect(0, 0, W, H);
+
+    // stars
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    for (let i = 0; i < 40; i++) {
+      const sx = ((i * 977) % 1000) / 1000 * W;
+      const sy = (((i * 613) % 1000) / 1000 * H + elapsed * 40 * devicePixelRatio) % H;
+      ctx.fillRect(sx, sy, 2, 2);
+    }
+
+    const shipPx = ship.x * W;
+    const shipPy = H - 120 * devicePixelRatio;
+
+    // the ship hums — it sheds a gentle aura ring as it glides
+    rippleTimer -= dt;
+    if (rippleTimer <= 0) {
+      addRipple(shipPx, shipPy, 70, 2);
+      rippleTimer = 0.5;
+    }
+
+    // ripples
+    for (const rp of ripples) {
+      rp.r += 90 * devicePixelRatio * dt;
+      const a = Math.max(0, 1 - rp.r / rp.max);
+      if (a <= 0) continue;
+      ctx.beginPath();
+      ctx.arc(rp.x, rp.y, rp.r, 0, 6.29);
+      ctx.strokeStyle = `rgba(127, 212, 255, ${a * 0.6})`;
+      ctx.lineWidth = rp.w;
+      ctx.stroke();
+    }
+    ripples = ripples.filter(rp => rp.r < rp.max);
+
+    // bolts
+    ctx.font = `${48 * devicePixelRatio}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const b of bolts) {
+      b.y += b.speed * dt;
+      b.x += b.wobble * dt;
+      const bx = b.x * W, by = b.y * H;
+      ctx.fillText('⚡', bx, by);
+      // collision
+      if (alive && Math.hypot(bx - shipPx, by - shipPy) < 42 * devicePixelRatio) {
+        alive = false;
+        struck();
+        return;
+      }
+      if (!b.counted && b.y > 1.05) {
+        b.counted = true;
+        dodged++;
+        counter.textContent = dodged + ' / 10';
+        chime(scaleNote(dodged - 1), 0.06);
+        addRipple(bx, H - 10 * devicePixelRatio, 130, 3);
+        if (dodged >= 10) {
+          running = false;
+          bowl(523.3, 4, 0.15);
+          bowl(659.3, 4, 0.1);
+          vibrate([30, 30, 60]);
+          setTimeout(() => transitionTo(stageName, 'Storm survived! ⚡'), 500);
+          return;
+        }
+      }
+    }
+    bolts = bolts.filter(b => b.y <= 1.1);
+
+    // ship (dimmed so the bolts read as the brighter danger)
+    ctx.font = `${52 * devicePixelRatio}px serif`;
+    ctx.globalAlpha = 0.5;
+    ctx.fillText('🚀', shipPx, shipPy);
+    ctx.globalAlpha = 1;
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  function struck() {
+    running = false;
+    bowl(98, 5, 0.22); // deep low bowl — the hard moment
+    vibrate([80, 50, 120]);
+    s.classList.add('shake');
+    ctx.font = `${64 * devicePixelRatio}px serif`;
+    ctx.fillText('💥', ship.x * W, H - 120 * devicePixelRatio);
+    setTimeout(() => {
+      clearGame();
+      const over = el('div', 'stage');
+      over.appendChild(el('div', '', '<div style="font-size:64px;margin-bottom:16px">💥</div>'));
+      over.appendChild(el('div', 'bigMsg', 'Struck by lightning!'));
+      over.appendChild(el('div', 'hint', 'Every setback is a fresh start…<br>back to the beginning.'));
+      game.appendChild(over);
+      setTimeout(() => transitionTo(stageCountdown), 2400);
+    }, 900);
+  }
+}
+
+/* ---------- 5. Spell your name ---------- */
+
+function stageName() {
+  setBg('linear-gradient(160deg, #1a1f4b 0%, #2a1c4d 100%)');
+  const s = el('div', 'stage');
+  stageTag(s, 'Stage 4 of 7');
+  s.appendChild(el('div', 'instruction', 'Spell Your Name ✍️'));
+  s.appendChild(el('div', 'hint', 'Tap the floating letters'));
+
+  const display = el('div', '');
+  display.id = 'nameDisplay';
+  display.innerHTML = '&nbsp;';
+  s.appendChild(display);
+
+  const btns = el('div', 'nameBtns');
+  const back = el('button', '', '⌫ Undo');
+  const enter = el('button', 'enter', 'Enter ➜');
+  enter.disabled = true;
+  btns.appendChild(back);
+  btns.appendChild(enter);
+  s.appendChild(btns);
+  game.appendChild(s);
+
+  let name = '';
+  function render() {
+    display.textContent = name || ' ';
+    enter.disabled = name.length === 0;
+  }
+
+  back.addEventListener('pointerdown', () => {
+    name = name.slice(0, -1);
+    chime(220, 0.06);
+    render();
+  });
+  enter.addEventListener('pointerdown', () => {
+    if (!name) return;
+    playerName = name;
+    bowl(392, 3.5, 0.14);
+    bowl(523.3, 3.5, 0.1);
+    vibrate(30);
+    transitionTo(stageLava, `Nice to meet you, ${playerName}! 👋`);
+  });
+
+  // Floating letter pool: full alphabet drifting around.
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const nodes = [];
+  letters.forEach((L, i) => {
+    const n = el('div', 'floatLetter', L);
+    s.appendChild(n);
+    nodes.push({
+      elm: n,
+      x: Math.random() * (innerWidth - 60),
+      y: 80 + Math.random() * (innerHeight - 320),
+      vx: (Math.random() - 0.5) * 30,
+      vy: (Math.random() - 0.5) * 30,
+    });
+    n.addEventListener('pointerdown', ev => {
+      if (name.length >= 14) return;
+      name += L;
+      chime(scaleNote(name.length + 2), 0.08);
+      aura(s, ev.clientX, ev.clientY, 70, 'rgba(255, 217, 127, .8)');
+      vibrate(10);
+      render();
+    });
+  });
+
+  let lastT = performance.now();
+  function drift(now) {
+    if (!document.body.contains(s)) return;
+    const dt = Math.min((now - lastT) / 1000, 0.05);
+    lastT = now;
+    for (const p of nodes) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      if (p.x < 4 || p.x > innerWidth - 56) p.vx *= -1;
+      if (p.y < 70 || p.y > innerHeight - 90) p.vy *= -1;
+      p.x = Math.max(4, Math.min(innerWidth - 56, p.x));
+      p.y = Math.max(70, Math.min(innerHeight - 90, p.y));
+      p.elm.style.transform = `translate(${p.x}px, ${p.y}px)`;
+      p.elm.style.left = '0';
+      p.elm.style.top = '0';
+    }
+    requestAnimationFrame(drift);
+  }
+  requestAnimationFrame(drift);
+}
+
+/* ---------- 6. Avoid the lava ---------- */
+
+function stageLava() {
+  setBg('linear-gradient(180deg, #2b0f0f 0%, #451410 100%)');
+  buildTraceStage({
+    tag: 'Stage 5 of 7',
+    title: 'Avoid the Lava 🌋',
+    hint: 'Hold your finger down and slide from START to FINISH.<br>Don’t touch the lava — don’t lift your finger!',
+    failMsg: 'Ouch, lava! 🔥 Try again.',
+    next: stageKeepGoing,
+    celebrate: 'You made it across! 🌋',
+    buildHazards(W, H) {
+      // Lava blobs everywhere except a winding safe channel.
+      const blobs = [];
+      const safeAt = t => { // channel center x (0..1) as we go from bottom to top
+        return 0.5 + 0.32 * Math.sin(t * Math.PI * 2.2);
+      };
+      const finish = { x: safeAt(1) * W, y: 170 * devicePixelRatio };
+      const start = { x: safeAt(0) * W, y: H - 90 * devicePixelRatio };
+      const clear = 95 * devicePixelRatio;
+      for (let i = 0; i < 90; i++) {
+        const y = Math.random();
+        const cx = safeAt(1 - y);
+        // place blobs off-channel
+        let x;
+        do { x = Math.random(); } while (Math.abs(x - cx) < 0.21);
+        const bx = x * W, by = y * H;
+        // keep the start and finish zones clear
+        if (Math.hypot(bx - finish.x, by - finish.y) < clear) continue;
+        if (Math.hypot(bx - start.x, by - start.y) < clear) continue;
+        blobs.push({ x: bx, y: by, r: (18 + Math.random() * 26) * devicePixelRatio, phase: Math.random() * 6.28 });
+      }
+      return blobs;
+    },
+    drawHazard(ctx, b, t) {
+      const r = b.r * (1 + 0.12 * Math.sin(t * 2 + b.phase));
+      const g = ctx.createRadialGradient(b.x, b.y, r * 0.1, b.x, b.y, r);
+      g.addColorStop(0, '#ffdd55');
+      g.addColorStop(0.4, '#ff7733');
+      g.addColorStop(1, '#c1290a');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, r, 0, 6.29);
+      ctx.fill();
+      return r;
+    },
+    startZone: (W, H) => ({ x: 0.5 * W, y: H - 90 * devicePixelRatio, r: 52 * devicePixelRatio, label: 'START' }),
+    endZone: (W, H) => ({ x: (0.5 + 0.32 * Math.sin(Math.PI * 2.2)) * W, y: 170 * devicePixelRatio, r: 52 * devicePixelRatio, label: 'FINISH' }),
+  });
+}
+
+/* ---------- 6.5 Keep going ---------- */
+
+function stageKeepGoing() {
+  setBg('linear-gradient(160deg, #1a1f4b 0%, #0f1226 100%)');
+  const s = el('div', 'stage');
+  s.appendChild(el('div', 'bigMsg', 'Keep going. 💪'));
+  s.appendChild(el('div', 'hint', 'You’re more than halfway there.'));
+  sprinkleConfetti(s, 8);
+  auraBurst(s, innerWidth / 2, innerHeight / 2, 4, 'rgba(199, 146, 255, .7)');
+  game.appendChild(s);
+  bowl(329.6, 4, 0.14);
+  setTimeout(() => bowl(440, 4, 0.11), 500);
+  setTimeout(() => transitionTo(stagePlank), 2800);
+}
+
+/* ---------- 7. Walk the plank ---------- */
+
+function stagePlank() {
+  setBg('linear-gradient(180deg, #0c2b3d 0%, #06405c 100%)');
+  buildTraceStage({
+    tag: 'Stage 6 of 7',
+    title: 'Walk the Plank 🪵',
+    hint: 'Slide your finger up the plank from START to FINISH.<br>Stay on the wood — don’t fall in!',
+    failMsg: 'Splash! 🌊 Back on the plank.',
+    next: stageBubbles,
+    celebrate: 'Steady as she goes! 🪵',
+    // Safe corridor: a straight vertical plank. "Hazard" = everything off the plank.
+    corridor(W, H) {
+      const width = Math.max(0.16 * W, 70 * devicePixelRatio);
+      return { type: 'plank', cx: () => W / 2, halfW: width / 2 };
+    },
+    drawScene(ctx, W, H, t, corridor) {
+      // water
+      ctx.fillStyle = '#0a4a68';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(255,255,255,.08)';
+      for (let i = 0; i < 14; i++) {
+        const y = ((i / 14) * H + t * 30 * devicePixelRatio) % H;
+        ctx.beginPath();
+        ctx.ellipse(((i * 631) % 1000) / 1000 * W, y, 44 * devicePixelRatio, 8 * devicePixelRatio, 0, 0, 6.29);
+        ctx.fill();
+      }
+      // plank
+      const hw = corridor.halfW;
+      const grad = ctx.createLinearGradient(W / 2 - hw, 0, W / 2 + hw, 0);
+      grad.addColorStop(0, '#6b4423');
+      grad.addColorStop(0.5, '#8f5e33');
+      grad.addColorStop(1, '#5c3a1e');
+      ctx.fillStyle = grad;
+      ctx.fillRect(W / 2 - hw, 0, hw * 2, H);
+      ctx.strokeStyle = 'rgba(0,0,0,.25)';
+      ctx.lineWidth = 2 * devicePixelRatio;
+      for (let y = 0; y < H; y += 60 * devicePixelRatio) {
+        ctx.beginPath(); ctx.moveTo(W / 2 - hw, y); ctx.lineTo(W / 2 + hw, y); ctx.stroke();
+      }
+    },
+  });
+}
+
+/* ---------- Shared "trace the path" engine (lava / plank) ---------- */
+
+function buildTraceStage(cfg) {
+  const s = el('div', 'stage');
+  stageTag(s, cfg.tag);
+  const hud = el('div', 'canvasHud');
+  hud.appendChild(el('div', 'instruction', cfg.title));
+  hud.appendChild(el('div', 'hint', cfg.hint));
+  s.appendChild(hud);
+
+  const canvas = el('canvas', 'stageCanvas');
+  s.appendChild(canvas);
+  game.appendChild(s);
+
+  const ctx = canvas.getContext('2d');
+  let W = canvas.width = canvas.clientWidth * devicePixelRatio;
+  let H = canvas.height = canvas.clientHeight * devicePixelRatio;
+
+  const corridor = cfg.corridor ? cfg.corridor(W, H) : null;
+  const hazards = cfg.buildHazards ? cfg.buildHazards(W, H) : null;
+
+  const startZone = cfg.startZone ? cfg.startZone(W, H)
+    : { x: corridor.cx(0), y: H - 90 * devicePixelRatio, r: 50 * devicePixelRatio, label: 'START' };
+  const endZone = cfg.endZone ? cfg.endZone(W, H)
+    : { x: corridor.cx(1), y: 170 * devicePixelRatio, r: 50 * devicePixelRatio, label: 'FINISH' };
+
+  let tracking = false, finished = false, failed = false;
+  let finger = null;
+  const trail = [];
+  let ripples = []; // aura rings shed along the finger's path
+  let lastRipple = null;
+  let t0 = performance.now();
+
+  function toCanvas(ev) {
+    const r = canvas.getBoundingClientRect();
+    return { x: (ev.clientX - r.left) * devicePixelRatio, y: (ev.clientY - r.top) * devicePixelRatio };
+  }
+
+  canvas.addEventListener('pointerdown', ev => {
+    const p = toCanvas(ev);
+    if (Math.hypot(p.x - startZone.x, p.y - startZone.y) < startZone.r) {
+      tracking = true;
+      trail.length = 0;
+      finger = p;
+      lastRipple = { ...p };
+      ripples.push({ x: p.x, y: p.y, r: 8 * devicePixelRatio, max: 120 * devicePixelRatio });
+      try { canvas.setPointerCapture(ev.pointerId); } catch (e) {}
+      chime(329.6, 0.08);
+      vibrate(10);
+    }
+  });
+  canvas.addEventListener('pointermove', ev => {
+    if (!tracking || finished || failed) return;
+    finger = toCanvas(ev);
+    trail.push({ ...finger });
+    if (trail.length > 120) trail.shift();
+    // shed an aura ring every ~60px of travel
+    if (lastRipple && Math.hypot(finger.x - lastRipple.x, finger.y - lastRipple.y) > 60 * devicePixelRatio) {
+      lastRipple = { ...finger };
+      ripples.push({ x: finger.x, y: finger.y, r: 8 * devicePixelRatio, max: 90 * devicePixelRatio });
+    }
+    checkPosition();
+  });
+  function endTouch() {
+    if (!tracking || finished || failed) return;
+    // Lifting the finger before finishing = fail
+    fail();
+  }
+  canvas.addEventListener('pointerup', endTouch);
+  canvas.addEventListener('pointercancel', endTouch);
+
+  function checkPosition() {
+    const p = finger;
+    // reached the end?
+    if (Math.hypot(p.x - endZone.x, p.y - endZone.y) < endZone.r) {
+      finished = true;
+      bowl(392, 3.5, 0.14);
+      bowl(523.3, 3.5, 0.1);
+      vibrate([30, 30, 60]);
+      setTimeout(() => transitionTo(cfg.next, cfg.celebrate), 400);
+      return;
+    }
+    // in start bubble = always safe
+    if (Math.hypot(p.x - startZone.x, p.y - startZone.y) < startZone.r) return;
+
+    if (corridor) {
+      const progress = 1 - p.y / H;
+      const cx = corridor.cx(progress);
+      if (Math.abs(p.x - cx) > corridor.halfW) fail();
+    }
+    if (hazards) {
+      const t = (performance.now() - t0) / 1000;
+      for (const b of hazards) {
+        const r = b.r * (1 + 0.12 * Math.sin(t * 2 + b.phase));
+        if (Math.hypot(p.x - b.x, p.y - b.y) < r - 6 * devicePixelRatio) { fail(); return; }
+      }
+    }
+  }
+
+  function fail() {
+    if (failed || finished) return;
+    failed = true;
+    tracking = false;
+    bowl(110, 4, 0.2); // low bowl — a stumble, not a punishment
+    vibrate([60, 40, 80]);
+    s.classList.add('shake');
+    const wrap = el('div');
+    wrap.style.cssText = 'position:absolute;z-index:3;top:42%;left:16px;right:16px;background:rgba(10,12,30,.82);border-radius:20px;padding:22px 12px;';
+    wrap.appendChild(el('div', 'bigMsg', cfg.failMsg));
+    s.appendChild(wrap);
+    setTimeout(() => {
+      clearGame();
+      // rebuild the same stage
+      if (cfg.tag.includes('5')) stageLava();
+      else stagePlank();
+    }, 1600);
+  }
+
+  function drawZone(z, color) {
+    ctx.beginPath();
+    ctx.arc(z.x, z.y, z.r, 0, 6.29);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.7)';
+    ctx.lineWidth = 3 * devicePixelRatio;
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${15 * devicePixelRatio}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(z.label, z.x, z.y);
+  }
+
+  let lastFrame = performance.now();
+  function loop() {
+    if (!document.body.contains(canvas)) return;
+    const now = performance.now();
+    const dt = Math.min((now - lastFrame) / 1000, 0.05);
+    lastFrame = now;
+    const t = (now - t0) / 1000;
+    ctx.clearRect(0, 0, W, H);
+
+    if (cfg.drawScene) cfg.drawScene(ctx, W, H, t, corridor);
+
+    if (hazards) {
+      // ground between blobs
+      ctx.fillStyle = '#3a1410';
+      ctx.fillRect(0, 0, W, H);
+      for (const b of hazards) cfg.drawHazard(ctx, b, t);
+    }
+
+    // trail
+    if (trail.length > 1) {
+      ctx.strokeStyle = 'rgba(255,255,255,.55)';
+      ctx.lineWidth = 6 * devicePixelRatio;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(trail[0].x, trail[0].y);
+      for (const p of trail) ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+
+    // aura ripples along the path
+    for (const rp of ripples) {
+      rp.r += 80 * devicePixelRatio * dt;
+      const a = Math.max(0, 1 - rp.r / rp.max);
+      if (a <= 0) continue;
+      ctx.beginPath();
+      ctx.arc(rp.x, rp.y, rp.r, 0, 6.29);
+      ctx.strokeStyle = `rgba(255, 217, 127, ${a * 0.65})`;
+      ctx.lineWidth = 2.5 * devicePixelRatio;
+      ctx.stroke();
+    }
+    ripples = ripples.filter(rp => rp.r < rp.max);
+
+    drawZone(startZone, 'rgba(80, 200, 120, .85)');
+    drawZone(endZone, 'rgba(127, 212, 255, .85)');
+
+    // finger marker
+    if (tracking && finger && !failed) {
+      ctx.beginPath();
+      ctx.arc(finger.x, finger.y, 16 * devicePixelRatio, 0, 6.29);
+      ctx.fillStyle = 'rgba(255, 217, 127, .9)';
+      ctx.fill();
+    }
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ---------- 9. Pop the bubbles ---------- */
+
+function stageBubbles() {
+  setBg('linear-gradient(180deg, #123a5c 0%, #1b6d8f 100%)');
+  const s = el('div', 'stage');
+  stageTag(s, 'Stage 7 of 7');
+  const hud = el('div', 'canvasHud');
+  hud.appendChild(el('div', 'instruction', 'Pop the Bubbles 🫧'));
+  const counter = el('div', 'counter', '5 left');
+  hud.appendChild(counter);
+  s.appendChild(hud);
+  game.appendChild(s);
+
+  let remaining = 5;
+  const spots = [
+    { x: 18, y: 26, size: 90 },
+    { x: 62, y: 34, size: 110 },
+    { x: 30, y: 52, size: 80 },
+    { x: 60, y: 66, size: 100 },
+    { x: 24, y: 76, size: 120 },
+  ];
+  spots.forEach((sp, i) => {
+    const b = el('div', 'bubble');
+    b.style.left = sp.x + 'vw';
+    b.style.top = sp.y + 'vh';
+    b.style.width = sp.size + 'px';
+    b.style.height = sp.size + 'px';
+    b.style.animationDelay = (i * 0.4) + 's';
+    b.addEventListener('pointerdown', ev => {
+      if (b.classList.contains('popped')) return;
+      b.classList.add('popped');
+      remaining--;
+      counter.textContent = remaining > 0 ? remaining + ' left' : '🎉';
+      chime(scaleNote(7 + (5 - remaining)), 0.1);
+      aura(s, ev.clientX, ev.clientY, sp.size + 30, 'rgba(255, 255, 255, .8)');
+      vibrate(15);
+      if (remaining === 0) setTimeout(() => transitionTo(stageFinal), 700);
+    });
+    s.appendChild(b);
+  });
+}
+
+/* ---------- 10. Final ---------- */
+
+function stageFinal() {
+  setBg('linear-gradient(160deg, #2a1c4d 0%, #4d2a1c 50%, #1a1f4b 100%)');
+  const s = el('div', 'stage');
+  sprinkleConfetti(s, 30);
+  s.appendChild(el('div', '', '<div style="font-size:64px;margin-bottom:20px">🌊✨</div>'));
+  const who = playerName ? `${playerName}, ` : '';
+  s.appendChild(el('div', 'bigMsg', `${who}people’s lives are a joy<br>when you’re in it. 💛`));
+  s.appendChild(el('div', 'hint', 'You rode every ebb and every flow.<br>The End.'));
+  const again = el('button', 'big', 'Play Again');
+  again.style.marginTop = '36px';
+  again.addEventListener('pointerdown', () => {
+    playerName = '';
+    transitionTo(stageTitle);
+  });
+  s.appendChild(again);
+  game.appendChild(s);
+
+  // closing bowl chord, one strike at a time, ringing together
+  const chord = [261.6, 329.6, 392, 523.3];
+  chord.forEach((f, i) => {
+    setTimeout(() => {
+      bowl(f, 6, 0.13);
+      aura(s, innerWidth / 2, innerHeight / 2, 140 + i * 50, 'rgba(255, 217, 127, .7)', 2.6);
+    }, i * 600);
+  });
+}
+
+/* ---------- go ---------- */
+startFireflies();
+stageTitle();
+</script>
+</body>
+</html>
